@@ -43,12 +43,16 @@ tiktok/
 
 ---
 
-### 3. ข้อมูลทางเทคนิคเกี่ยวกับระบบคลาวด์และ Authentication ที่ผู้ใช้สอบถาม
+### 3. ข้อมูลทางเทคนิคเกี่ยวกับระบบคลาวด์ ฐานข้อมูล และ Storage
 * **BaaS (Backend-as-a-Service):** คือคำเรียกบริการ Backend สำเร็จรูปบน Cloud ที่มีระบบ Database, API และ Auth รวมอยู่ในที่เดียว เช่น **Supabase** หรือ **Firebase**
 * **Supabase Auth / Social OAuth Provider:** คือบริการ Identity Provider (IdP) ภายใน Supabase ที่ดูแลระบบการยืนยันตัวตน (Authentication) ผ่าน Google OAuth, TikTok Login, Apple ID และ Email โดยจัดการ Token และ Row Level Security (RLS) ให้เสร็จสรรพ
+* **Cloudflare R2 Object Storage (ระบบจัดเก็บไฟล์รูปภาพ):** 
+  - ใช้ **Cloudflare R2 (S3-compatible Object Storage)** เพื่อจัดเก็บไฟล์รูปภาพสินค้า และแคชภาพหน้าปกจากคลิป TikTok ถาวร
+  - **ข้อดีเด่น:** ไม่มีค่าแบนด์วิดท์ดาวน์โหลด (Zero Egress Fees) ทำให้ประหยัดค่าใช้จ่ายเมื่อมีคนเข้าชมจำนวนมาก
+  - **สถาปัตยกรรมเก็บข้อมูล:** ฐานข้อมูล (PostgreSQL / Supabase) จะเก็บเฉพาะ URL Text Path (เช่น `https://media.yourdomain.com/products/xxx.jpg`) เพื่อไม่ให้ฐานข้อมูลมีขนาดใหญ่หรือทำงานหนักเกินไป
 * **การต่อยอดใช้งาน (Cloud Migration):**
-  - ปัจจุบันระบบใช้ **Docker Compose (`docker-compose.yml`)** รัน PostgreSQL ภายในเครื่อง เพื่อให้รันและทดสอบระบบได้ทันทีโดยไม่ต้องรอ Cloud API Key
-  - เมื่อได้โปรเจกต์ Supabase มาแล้ว เพียงนำ `DATABASE_URL` และ `SUPABASE_URL` / `SUPABASE_ANON_KEY` มากรอกใน `.env` ระบบ TypeORM จะเชื่อมต่อไปยัง Supabase ได้ทันทีโดยไม่ต้องแก้โค้ด
+  - ปัจจุบันระบบใช้ **Docker Compose (`docker-compose.yml`)** รัน PostgreSQL ภายในเครื่อง เพื่อให้รันและทดสอบระบบได้ทันทีโดยไม่ต้องรอ Cloud Key
+  - เมื่อได้โปรเจกต์ Supabase และ Cloudflare R2 มาแล้ว เพียงนำ `DATABASE_URL` และ `R2_ACCOUNT_ID` / `R2_ACCESS_KEY_ID` / `R2_SECRET_ACCESS_KEY` มากุมไว้ใน `.env` ระบบจะทำงานบน Cloud เต็มรูปแบบทันทีโดยไม่ต้องแก้โค้ด
 
 ---
 

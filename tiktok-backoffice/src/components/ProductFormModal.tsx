@@ -1,7 +1,7 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
-import { X, Save, Package, Sparkles, Loader2, Image as ImageIcon, ExternalLink } from 'lucide-react';
+import React, { useState, useEffect, useRef } from 'react';
+import { X, Save, Package, Sparkles, Loader2, Image as ImageIcon, Upload, CheckCircle } from 'lucide-react';
 import { IProduct, ICategory, ProductType } from '@tiktok/types';
 
 interface ProductFormModalProps {
@@ -19,6 +19,7 @@ export const ProductFormModal: React.FC<ProductFormModalProps> = ({
   productToEdit,
   onSave,
 }) => {
+  const fileInputRef = useRef<HTMLInputElement>(null);
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
   const [categoryId, setCategoryId] = useState('');
@@ -29,6 +30,7 @@ export const ProductFormModal: React.FC<ProductFormModalProps> = ({
   const [tiktokProductUrl, setTiktokProductUrl] = useState('');
   const [tiktokVideoUrl, setTiktokVideoUrl] = useState('');
   const [isFetchingTikTok, setIsFetchingTikTok] = useState(false);
+  const [isUploading, setIsUploading] = useState(false);
   const [fetchSuccessMsg, setFetchSuccessMsg] = useState('');
   const [fetchErrorMsg, setFetchErrorMsg] = useState('');
 
@@ -60,7 +62,7 @@ export const ProductFormModal: React.FC<ProductFormModalProps> = ({
 
   if (!isOpen) return null;
 
-  // Auto-fetch thumbnail and title from TikTok oEmbed API
+  // Auto-fetch thumbnail and title from TikTok oEmbed API + Cache to R2
   const handleFetchTikTokMetadata = async () => {
     if (!tiktokVideoUrl) {
       setFetchErrorMsg('กรุณากรอกลิงก์คลิป TikTok ก่อนกดดึงข้อมูล');
@@ -82,18 +84,68 @@ export const ProductFormModal: React.FC<ProductFormModalProps> = ({
       const { thumbnailUrl, title: videoCaption } = data.data;
 
       if (thumbnailUrl) {
-        setImageUrl(thumbnailUrl);
+        // Automatically cache TikTok thumbnail to Cloudflare R2
+        try {
+          const cacheRes = await fetch('/api/upload', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ remoteUrl: thumbnailUrl }),
+          });
+          const cacheData = await cacheRes.json();
+          if (cacheData.success && cacheData.url) {
+            setImageUrl(cacheData.url);
+          } else {
+            setImageUrl(thumbnailUrl);
+          }
+        } catch {
+          setImageUrl(thumbnailUrl);
+        }
       }
 
       if (videoCaption && !title) {
         setTitle(videoCaption);
       }
 
-      setFetchSuccessMsg('ดึงภาพปกและข้อมูลจากคลิป TikTok สำเร็จแล้ว');
+      setFetchSuccessMsg('ดึงภาพปกและแคปชันจาก TikTok สำเร็จแล้ว (พร้อมบันทึก Cloudflare R2)');
     } catch (err: any) {
       setFetchErrorMsg(err.message || 'เกิดข้อผิดพลาดในการดึงข้อมูลคลิป TikTok');
     } finally {
       setIsFetchingTikTok(false);
+    }
+  };
+
+  // Direct file upload to Cloudflare R2
+  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    setIsUploading(true);
+    setFetchSuccessMsg('');
+    setFetchErrorMsg('');
+
+    try {
+      const formData = new FormData();
+      formData.append('file', file);
+
+      const res = await fetch('/api/upload', {
+        method: 'POST',
+        body: formData,
+      });
+
+      const data = await res.json();
+      if (!res.ok || !data.success) {
+        throw new Error(data.message || 'อัปโหลดไฟล์ไม่สำเร็จ');
+      }
+
+      setImageUrl(data.url);
+      setFetchSuccessMsg(`อัปโหลดไฟล์ขึ้น Cloudflare R2 สำเร็จ (${file.name})`);
+    } catch (err: any) {
+      setFetchErrorMsg(err.message || 'เกิดข้อผิดพลาดในการอัปโหลดไฟล์');
+    } finally {
+      setIsUploading(false);
+      if (fileInputRef.current) {
+        fileInputRef.current.value = '';
+      }
     }
   };
 
@@ -137,8 +189,9 @@ export const ProductFormModal: React.FC<ProductFormModalProps> = ({
 
         {/* Feedback Notifications */}
         {fetchSuccessMsg && (
-          <div className="mt-3 p-2.5 rounded-xl bg-emerald-950/60 border border-emerald-800 text-emerald-300 text-xs">
-            {fetchSuccessMsg}
+          <div className="mt-3 p-2.5 rounded-xl bg-emerald-950/60 border border-emerald-800 text-emerald-300 text-xs flex items-center gap-2">
+            <CheckCircle className="w-4 h-4 shrink-0" />
+            <span>{fetchSuccessMsg}</span>
           </div>
         )}
         {fetchErrorMsg && (
@@ -262,11 +315,33 @@ export const ProductFormModal: React.FC<ProductFormModalProps> = ({
             </div>
           </div>
 
-          {/* Image URL & Thumbnail Preview */}
+          {/* Image URL with Direct R2 Upload button */}
           <div>
-            <label className="block text-xs font-semibold text-slate-300 mb-1">
-              ลิงก์รูปภาพสินค้า (Image URL) *
-            </label>
+            <div className="flex items-center justify-between mb-1">
+              <label className="text-xs font-semibold text-slate-300">
+                ลิงก์รูปภาพสินค้า (Cloudflare R2 หรือ Image URL) *
+              </label>
+              <input
+                type="file"
+                ref={fileInputRef}
+                onChange={handleFileUpload}
+                accept="image/*"
+                className="hidden"
+              />
+              <button
+                type="button"
+                onClick={() => fileInputRef.current?.click()}
+                disabled={isUploading}
+                className="text-[11px] text-blue-400 hover:text-blue-300 flex items-center gap-1 font-medium transition-colors"
+              >
+                {isUploading ? (
+                  <Loader2 className="w-3 h-3 animate-spin" />
+                ) : (
+                  <Upload className="w-3 h-3" />
+                )}
+                <span>อัปโหลดรูปตรงขึ้น R2</span>
+              </button>
+            </div>
             <div className="flex gap-3 items-center">
               <input
                 type="url"
@@ -274,7 +349,7 @@ export const ProductFormModal: React.FC<ProductFormModalProps> = ({
                 value={imageUrl}
                 onChange={(e) => setImageUrl(e.target.value)}
                 placeholder="https://..."
-                className="flex-1 bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-blue-500"
+                className="flex-1 bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-blue-500 font-mono text-[11px]"
               />
               {imageUrl && (
                 <div className="w-12 h-12 rounded-lg border border-slate-700 overflow-hidden bg-slate-950 shrink-0">
