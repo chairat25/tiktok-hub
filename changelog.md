@@ -65,6 +65,7 @@ tiktok/
 - [x] ระบบกรองหมวดหมู่สินค้า (CategoryFilter) เลื่อนแนวนอนแบบไม่มี Scrollbar เกะกะ (ทำงานควบคู่กับ Search ได้)
 - [x] การแสดงการ์ดสินค้า (ProductCard) พร้อมปุ่ม "ดูคลิปรีวิว" (VideoModal)
 - [x] โฟลว์ "Login to Buy": ผู้ชมกดซื้อสินค้า หากยังไม่ล็อกอิน จะมี `AuthModal` แสดงขึ้นมาให้เลือก Google SSO, TikTok Login หรือ Email เมื่อสำเร็จระบบจะบันทึก Click Event และ Redirect ไปยังหน้าร้าน TikTok Shop ของ Creator โดยอัตโนมัติ
+- [x] หน้าข้อกำหนดและนโยบายความเป็นส่วนตัว: สร้างหน้า `/terms` (Terms of Service) และ `/privacy` (Privacy Policy) ถูกต้องตามเกณฑ์ของ TikTok Developer Guidelines
 - [x] Zero-Emoji Standard: ใช้ Lucide Vector Icons ทั้งหมด 100%
 
 #### 4.2 TikTok Backoffice (`tiktok-backoffice`)
