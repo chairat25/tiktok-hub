@@ -121,19 +121,41 @@ docker compose up -d
 
 ---
 
+## [2026-10-18] - เชื่อมต่อ Supabase Pooler, Cloudflare R2, TikTok Developer Portal และ Vercel Production Deployment
+
+### 1. ความคืบหน้าและการเชื่อมต่อระบบจริง
+* **Supabase PostgreSQL (Database Cloud):**
+  - เปลี่ยนจากการเชื่อมต่อแบบ Direct (`db.<ref>.supabase.co` ซึ่ง ISP/WiFi หลายแห่งไม่รองรับ IPv6) มาใช้ **Supabase Connection Pooler** (`aws-0-ap-southeast-1.pooler.supabase.com:5432`) ทำให้รองรับ IPv4 ได้ 100%
+  - ตั้งค่า `ssl: { rejectUnauthorized: false }` ใน TypeORM DataSource สำเร็จ
+  - ตารางทั้งหมด (`users`, `categories`, `products`, `click_trackings`) ถูกสร้างบน Supabase อย่างสมบูรณ์แบบ โดยคงความสะอาดของฐานข้อมูล (0 mock rows) เพื่อรองรับ Multi-tenant จริง
+* **Cloudflare R2 Object Storage (ระบบจัดเก็บรูปภาพ):**
+  - ติดตั้งและตั้งค่า `@aws-sdk/client-s3` ใน `tiktok-backoffice/src/app/api/upload/route.ts`
+  - รองรับการอัปโหลดไฟล์จากเครื่อง และการแคชรูปภาพจาก TikTok oEmbed ลง Cloudflare R2 อัตโนมัติ
+* **TikTok Developer App ("Showcase Catalog Hub"):**
+  - สร้างแอปใน TikTok Developer Portal ประเภท Individual / Other เรียบร้อย
+  - สร้างภาพไอคอนแอปตามมาตรฐาน TikTok (1024x1024 px, JPEG, < 5MB): `tiktok/app-icon.jpg`
+  - เพิ่มหน้าทางกฎหมายสำหรับตรวจสอบสิทธิ์: Terms of Service (`/terms`) และ Privacy Policy (`/privacy`) ใน `tiktok-viewer`
+* **Vercel Production Deployment:**
+  - เพิ่มคอนฟิก `.yarnrc.yml` (`nodeLinker: node-modules`) และ `"packageManager": "yarn@4.8.1"` ใน root `package.json`
+  - ตั้งค่า `transpilePackages: ['@tiktok/types', '@tiktok/database', '@tiktok/auth']` ในทั้งสอง Next.js apps
+  - ผูก Git Remote `https://github.com/chairat25/tiktok-hub.git`
+  - Deploy `tiktok-viewer` สำเร็จบน Vercel Production พร้อม Environment Variables: `DATABASE_URL` และ `AUTH_SECRET`
+
+---
+
 ### Handoff Block
 ```
-[KEYWORD: tiktok-catalog-core]
+[KEYWORD: tiktok-vercel-deployed]
 - Completed:
-  1. โครงสร้าง Yarn Workspaces Monorepo ภายใต้ tiktok/
-  2. docker-compose.yml พร้อม local postgresql 16
-  3. Shared packages: @tiktok/types, @tiktok/database (TypeORM), @tiktok/auth (RBAC/JWT)
-  4. tiktok-viewer (Next.js): หน้าร้านค้า /@creatorHandle, Category Filter, Product Card, Video Modal, Auth Modal (Login to Buy), Track & Buy Redirect API
-  5. tiktok-backoffice (Next.js): Login SSO, Dashboard Sidebar, Product CRUD Modal & Table, Category Sorting, Shop Settings, Team & RBAC Management
-  6. Documentation: changelog.md, specs doc, implementation plan doc
+  1. เชื่อมต่อ Supabase Pooler (IPv4) และสร้างตารางครบถ้วน 0 rows
+  2. เชื่อมต่อ Cloudflare R2 สำหรับอัปโหลดและแคชรูปภาพ
+  3. ออกแบบไอคอนแอป 1024x1024 tiktok/app-icon.jpg
+  4. พัฒนาหน้า /terms และ /privacy บน tiktok-viewer
+  5. Deploy tiktok-viewer ขึ้น Vercel สำเร็จสมบูรณ์แบบ
 - Pending for Next Sessions / Next Agent:
-  1. ต่อ Database จริงเมื่อรัน docker compose up หรือนำ Supabase Connection String มาใส่ใน .env
-  2. เพิ่ม Live Seed Script สำหรับ insert Creator ตัวอย่างลงในฐานข้อมูล
-  3. ทดสอบการเชื่อมต่อ TikTok Login Kit API หรือ Google OAuth Client ID บน Production
-- Next Action Prompt: รัน docker compose up -d และทดสอบเปิดหน้าร้าน tiktok-viewer (http://localhost:3000/@pond) และแดชบอร์ด tiktok-backoffice (http://localhost:3001) ได้ทันที
+  1. คัดลอก Vercel Production URL ไปกรอกใน TikTok Developer Portal (Web URL, Terms, Privacy) และอัปโหลด app-icon.jpg
+  2. Deploy tiktok-backoffice ขึ้น Vercel เป็นอีก 1 โปรเจกต์ (หรือรันคู่กัน)
+  3. ทดสอบการสมัคร Creator ร้านแรก และเพิ่มสินค้าจริง
+- Next Action Prompt: นำ Vercel domain จากแดชบอร์ด Vercel ไปใส่ใน TikTok Developer Portal พร้อมกด Save แล้วดำเนินการต่อในส่วน Backoffice หรือสร้าง Creator ร้านแรก
 ```
+
