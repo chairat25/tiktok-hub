@@ -1,6 +1,7 @@
 {
   "name": "tiktok-monorepo",
   "version": "1.0.0",
+  "packageManager": "yarn@4.8.1",
   "private": true,
   "workspaces": [
     "tiktok-viewer",
