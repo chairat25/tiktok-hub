@@ -78,8 +78,9 @@ tiktok/
 
 #### 4.3 Shared Packages & Database
 - [x] `@tiktok/types`: Enums (`UserRole`, `ProductType`, `PermissionAction`), Interfaces และ DTOs
-- [x] `@tiktok/database`: TypeORM Entities (`User`, `Category`, `Product`, `ClickTracking`) พร้อม DataSource Singleton
+- [x] `@tiktok/database`: TypeORM Entities (`User`, `Category`, `Product`, `ClickTracking`) พร้อม DataSource Singleton รองรับ SSL
 - [x] `@tiktok/auth`: Role Permissions Matrix, JWT Token Signing, และ Verification
+- [x] Supabase Cloud Database: เชื่อมต่อและเตรียม Schema สะอาด (Clean Schema) บน Supabase PostgreSQL เรียบร้อย 100% พร้อมรองรับ Multi-Tenant (จำนวน 0 rows พร้อมให้ผู้ใช้จริงเข้ามาสร้างข้อมูลของตนเอง)
 
 ---
 

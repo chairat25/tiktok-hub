@@ -12,6 +12,9 @@ export const AppDataSource = new DataSource(
     ? {
         type: 'postgres',
         url: databaseUrl,
+        ssl: databaseUrl.includes('supabase') || process.env.DB_SSL === 'true'
+          ? { rejectUnauthorized: false }
+          : false,
         synchronize: true, // Auto synchronize schema in dev/staging
         logging: process.env.NODE_ENV === 'development',
         entities: [User, Category, Product, ClickTracking],
