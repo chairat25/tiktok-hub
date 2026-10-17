@@ -139,23 +139,30 @@ docker compose up -d
   - เพิ่มคอนฟิก `.yarnrc.yml` (`nodeLinker: node-modules`) และ `"packageManager": "yarn@4.8.1"` ใน root `package.json`
   - ตั้งค่า `transpilePackages: ['@tiktok/types', '@tiktok/database', '@tiktok/auth']` ในทั้งสอง Next.js apps
   - ผูก Git Remote `https://github.com/chairat25/tiktok-hub.git`
-  - Deploy `tiktok-viewer` สำเร็จบน Vercel Production พร้อม Environment Variables: `DATABASE_URL` และ `AUTH_SECRET`
+* **TikTok URL Verification & Login Kit Integration:**
+  - ยืนยันสิทธิ์ความเป็นเจ้าของโดเมนสำเร็จ (URL Prefix Verification) ผ่าน Signature File `tiktokARosiOg4YtW4Zlz8SA097Hd9QvmrnBao.txt` ใน `tiktok-viewer/public/` และใส่ Meta Tag ใน `layout.tsx`
+  - พัฒนาและ Deploy Endpoint รองรับ OAuth Redirect: `/api/auth/callback` เพื่อรับ Code/State จาก TikTok Login Kit และพากลับสู่หน้าร้านค้า
+  - จัดเตรียมข้อมูล App Submission ครบถ้วน (Category, Description, Login Kit Scope Explanation, Demo Video, Redirect URI)
 
 ---
 
 ### Handoff Block
 ```
-[KEYWORD: tiktok-vercel-deployed]
+[KEYWORD: tiktok-app-review-ready]
 - Completed:
   1. เชื่อมต่อ Supabase Pooler (IPv4) และสร้างตารางครบถ้วน 0 rows
   2. เชื่อมต่อ Cloudflare R2 สำหรับอัปโหลดและแคชรูปภาพ
   3. ออกแบบไอคอนแอป 1024x1024 tiktok/app-icon.jpg
   4. พัฒนาหน้า /terms และ /privacy บน tiktok-viewer
   5. Deploy tiktok-viewer ขึ้น Vercel สำเร็จสมบูรณ์แบบ
+  6. ยืนยัน URL Prefix Verification บน TikTok ผ่าน 100%
+  7. พัฒนาและ Deploy OAuth Callback Endpoint /api/auth/callback
+  8. กรอกข้อมูล App Review ครบถ้วน (Login Kit, Scopes, Redirect URI, Demo Video) พร้อมส่งตรวจ
 - Pending for Next Sessions / Next Agent:
-  1. คัดลอก Vercel Production URL ไปกรอกใน TikTok Developer Portal (Web URL, Terms, Privacy) และอัปโหลด app-icon.jpg
+  1. กด Submit for Review บน TikTok Developer Portal และรอผลการอนุมัติ
   2. Deploy tiktok-backoffice ขึ้น Vercel เป็นอีก 1 โปรเจกต์ (หรือรันคู่กัน)
   3. ทดสอบการสมัคร Creator ร้านแรก และเพิ่มสินค้าจริง
-- Next Action Prompt: นำ Vercel domain จากแดชบอร์ด Vercel ไปใส่ใน TikTok Developer Portal พร้อมกด Save แล้วดำเนินการต่อในส่วน Backoffice หรือสร้าง Creator ร้านแรก
+- Next Action Prompt: ดำเนินการต่อในส่วน Backoffice หรือสร้าง Creator ร้านแรกเพื่อทดสอบระบบแคตตาล็อก
 ```
+
 
