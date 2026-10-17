@@ -57,18 +57,17 @@ tiktok/
 #### 4.1 TikTok Viewer (`tiktok-viewer`)
 - [x] หน้าร้านค้าแบบ Mobile-First รองรับเปิดผ่านเบราว์เซอร์ของ TikTok ได้รวดเร็ว
 - [x] URL เข้าถึงตาม Creator: `http://localhost:3000/[creatorHandle]` (เช่น `/@pond`)
-- [x] ระบบกรองหมวดหมู่สินค้า (CategoryFilter) เลื่อนแนวนอนแบบไม่มี Scrollbar เกะกะ
+- [x] ช่องค้นหาสินค้า (Search Bar): ค้นหาชื่อสินค้าและรายละเอียดได้แบบ Real-time พร้อมปุ่มล้างคำค้นหาและ Empty State
+- [x] ระบบกรองหมวดหมู่สินค้า (CategoryFilter) เลื่อนแนวนอนแบบไม่มี Scrollbar เกะกะ (ทำงานควบคู่กับ Search ได้)
 - [x] การแสดงการ์ดสินค้า (ProductCard) พร้อมปุ่ม "ดูคลิปรีวิว" (VideoModal)
 - [x] โฟลว์ "Login to Buy": ผู้ชมกดซื้อสินค้า หากยังไม่ล็อกอิน จะมี `AuthModal` แสดงขึ้นมาให้เลือก Google SSO, TikTok Login หรือ Email เมื่อสำเร็จระบบจะบันทึก Click Event และ Redirect ไปยังหน้าร้าน TikTok Shop ของ Creator โดยอัตโนมัติ
 - [x] Zero-Emoji Standard: ใช้ Lucide Vector Icons ทั้งหมด 100%
 
 #### 4.2 TikTok Backoffice (`tiktok-backoffice`)
 - [x] หน้าล็อกอิน SSO สำหรับ Creator และ Admin (รองรับ Google SSO, TikTok OAuth, Email)
-- [x] ระบบสิทธิ์การใช้งาน (RBAC):
-  - `SUPER_ADMIN`: สิทธิ์สูงสุด ดูแลระบบภาพรวม
-  - `CREATOR`: จัดการสินค้า, หมวดหมู่, ลิงก์ร้าน TikTok ของตนเอง และเชิญทีมงาน
-  - `STAFF`: ช่วยจัดการสินค้าและหมวดหมู่ แต่ไม่สามารถเปลี่ยนลิงก์รับเงินหรือตั้งค่าร้านได้
-- [x] แดชบอร์ดจัดการสินค้า (Products CRUD): เพิ่ม/แก้ไข/ลบสินค้า, กำหนดราคาปกติ/ลดราคา, ใส่ลิงก์ TikTok Shop และคลิปรีวิว TikTok
+- [x] ระบบสิทธิ์การใช้งาน (RBAC): `SUPER_ADMIN`, `CREATOR`, `STAFF`
+- [x] TikTok oEmbed Auto-fetch: ระบบดึงภาพหน้าปกคลิป (Cover Thumbnail) และชื่อคลิปอัตโนมัติจากลิงก์ TikTok ผ่าน `/api/tiktok/oembed` เพียงกดปุ่ม "ดึงภาพปก"
+- [x] แดชบอร์ดจัดการสินค้า (Products CRUD): เพิ่ม/แก้ไข/ลบสินค้า, กำหนดราคาปกติ/ลดราคา, ใส่ลิงก์ TikTok Shop และคลิปรีวิว พร้อมพรีวิวรูปภาพ
 - [x] แดชบอร์ดจัดหมวดหมู่ (Categories & Sorting): เพิ่มหมวดหมู่ และปุ่มเลื่อนลำดับขึ้น/ลง (Reordering)
 - [x] ตั้งค่าร้านค้า (Shop Settings): แก้ไขชื่อร้าน, TikTok Handle, TikTok Shop URL และคำแนะนำเชื่อมต่อ Supabase
 - [x] จัดการทีมงาน (Team RBAC): ตารางแจกแจงสิทธิ์ และฟอร์มเชิญทีมงานพร้อมกำหนดบทบาท

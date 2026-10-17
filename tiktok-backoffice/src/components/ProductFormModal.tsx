@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { X, Save, Plus, Package } from 'lucide-react';
+import { X, Save, Package, Sparkles, Loader2, Image as ImageIcon, ExternalLink } from 'lucide-react';
 import { IProduct, ICategory, ProductType } from '@tiktok/types';
 
 interface ProductFormModalProps {
@@ -28,6 +28,9 @@ export const ProductFormModal: React.FC<ProductFormModalProps> = ({
   const [productType, setProductType] = useState<ProductType>(ProductType.TIKTOK_SHOP);
   const [tiktokProductUrl, setTiktokProductUrl] = useState('');
   const [tiktokVideoUrl, setTiktokVideoUrl] = useState('');
+  const [isFetchingTikTok, setIsFetchingTikTok] = useState(false);
+  const [fetchSuccessMsg, setFetchSuccessMsg] = useState('');
+  const [fetchErrorMsg, setFetchErrorMsg] = useState('');
 
   useEffect(() => {
     if (productToEdit) {
@@ -51,9 +54,48 @@ export const ProductFormModal: React.FC<ProductFormModalProps> = ({
       setTiktokProductUrl('https://shop.tiktok.com');
       setTiktokVideoUrl('');
     }
+    setFetchSuccessMsg('');
+    setFetchErrorMsg('');
   }, [productToEdit, categories, isOpen]);
 
   if (!isOpen) return null;
+
+  // Auto-fetch thumbnail and title from TikTok oEmbed API
+  const handleFetchTikTokMetadata = async () => {
+    if (!tiktokVideoUrl) {
+      setFetchErrorMsg('กรุณากรอกลิงก์คลิป TikTok ก่อนกดดึงข้อมูล');
+      return;
+    }
+
+    setIsFetchingTikTok(true);
+    setFetchSuccessMsg('');
+    setFetchErrorMsg('');
+
+    try {
+      const res = await fetch(`/api/tiktok/oembed?url=${encodeURIComponent(tiktokVideoUrl)}`);
+      const data = await res.json();
+
+      if (!res.ok || !data.success) {
+        throw new Error(data.message || 'ไม่สามารถดึงข้อมูลคลิปได้');
+      }
+
+      const { thumbnailUrl, title: videoCaption } = data.data;
+
+      if (thumbnailUrl) {
+        setImageUrl(thumbnailUrl);
+      }
+
+      if (videoCaption && !title) {
+        setTitle(videoCaption);
+      }
+
+      setFetchSuccessMsg('ดึงภาพปกและข้อมูลจากคลิป TikTok สำเร็จแล้ว');
+    } catch (err: any) {
+      setFetchErrorMsg(err.message || 'เกิดข้อผิดพลาดในการดึงข้อมูลคลิป TikTok');
+    } finally {
+      setIsFetchingTikTok(false);
+    }
+  };
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -93,8 +135,54 @@ export const ProductFormModal: React.FC<ProductFormModalProps> = ({
           </button>
         </div>
 
+        {/* Feedback Notifications */}
+        {fetchSuccessMsg && (
+          <div className="mt-3 p-2.5 rounded-xl bg-emerald-950/60 border border-emerald-800 text-emerald-300 text-xs">
+            {fetchSuccessMsg}
+          </div>
+        )}
+        {fetchErrorMsg && (
+          <div className="mt-3 p-2.5 rounded-xl bg-red-950/60 border border-red-800 text-red-300 text-xs">
+            {fetchErrorMsg}
+          </div>
+        )}
+
         {/* Form Body */}
         <form onSubmit={handleSubmit} className="space-y-4 pt-4">
+          {/* TikTok Video Review Input with Auto-fetch button */}
+          <div className="p-3.5 bg-slate-950/80 rounded-xl border border-slate-800 space-y-2">
+            <label className="block text-xs font-semibold text-slate-200">
+              ลิงก์คลิป TikTok (ดึงภาพปกและชื่ออัตโนมัติ)
+            </label>
+            <div className="flex gap-2">
+              <input
+                type="url"
+                value={tiktokVideoUrl}
+                onChange={(e) => setTiktokVideoUrl(e.target.value)}
+                placeholder="https://www.tiktok.com/@creator/video/..."
+                className="flex-1 bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-blue-500"
+              />
+              <button
+                type="button"
+                onClick={handleFetchTikTokMetadata}
+                disabled={isFetchingTikTok || !tiktokVideoUrl}
+                className="px-3.5 py-2 rounded-xl text-xs font-semibold bg-rose-600 hover:bg-rose-500 text-white flex items-center gap-1.5 transition-all disabled:opacity-40 whitespace-nowrap"
+                title="ดึงภาพปกและชื่อคลิปจาก TikTok อัตโนมัติ"
+              >
+                {isFetchingTikTok ? (
+                  <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                ) : (
+                  <Sparkles className="w-3.5 h-3.5" />
+                )}
+                <span>ดึงภาพปก</span>
+              </button>
+            </div>
+            <p className="text-[11px] text-slate-400">
+              เมื่อแปะลิงก์คลิปแล้วกด &quot;ดึงภาพปก&quot; ระบบจะดาวน์โหลดภาพหน้าปกของคลิปนั้นมาให้ทันที
+            </p>
+          </div>
+
+          {/* Title */}
           <div>
             <label className="block text-xs font-semibold text-slate-300 mb-1">
               ชื่อสินค้า *
@@ -109,6 +197,7 @@ export const ProductFormModal: React.FC<ProductFormModalProps> = ({
             />
           </div>
 
+          {/* Category & Product Type */}
           <div className="grid grid-cols-2 gap-3">
             <div>
               <label className="block text-xs font-semibold text-slate-300 mb-1">
@@ -143,6 +232,7 @@ export const ProductFormModal: React.FC<ProductFormModalProps> = ({
             </div>
           </div>
 
+          {/* Pricing */}
           <div className="grid grid-cols-2 gap-3">
             <div>
               <label className="block text-xs font-semibold text-slate-300 mb-1">
@@ -172,20 +262,36 @@ export const ProductFormModal: React.FC<ProductFormModalProps> = ({
             </div>
           </div>
 
+          {/* Image URL & Thumbnail Preview */}
           <div>
             <label className="block text-xs font-semibold text-slate-300 mb-1">
               ลิงก์รูปภาพสินค้า (Image URL) *
             </label>
-            <input
-              type="url"
-              required
-              value={imageUrl}
-              onChange={(e) => setImageUrl(e.target.value)}
-              placeholder="https://..."
-              className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-blue-500"
-            />
+            <div className="flex gap-3 items-center">
+              <input
+                type="url"
+                required
+                value={imageUrl}
+                onChange={(e) => setImageUrl(e.target.value)}
+                placeholder="https://..."
+                className="flex-1 bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-blue-500"
+              />
+              {imageUrl && (
+                <div className="w-12 h-12 rounded-lg border border-slate-700 overflow-hidden bg-slate-950 shrink-0">
+                  <img
+                    src={imageUrl}
+                    alt="Preview"
+                    className="w-full h-full object-cover"
+                    onError={(e) => {
+                      (e.target as HTMLImageElement).src = 'https://images.unsplash.com/photo-1523275335684-37898b6baf30?w=200&auto=format&fit=crop&q=60';
+                    }}
+                  />
+                </div>
+              )}
+            </div>
           </div>
 
+          {/* TikTok Shop Link */}
           <div>
             <label className="block text-xs font-semibold text-slate-300 mb-1">
               ลิงก์ TikTok Shop หรือ Affiliate สำหรับให้ผู้ชมกดซื้อ *
@@ -200,19 +306,7 @@ export const ProductFormModal: React.FC<ProductFormModalProps> = ({
             />
           </div>
 
-          <div>
-            <label className="block text-xs font-semibold text-slate-300 mb-1">
-              ลิงก์คลิปวิดีโอรีวิวบน TikTok (สำหรับปุ่ม &quot;ดูคลิปรีวิว&quot;)
-            </label>
-            <input
-              type="url"
-              value={tiktokVideoUrl}
-              onChange={(e) => setTiktokVideoUrl(e.target.value)}
-              placeholder="https://www.tiktok.com/@creator/video/..."
-              className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-blue-500"
-            />
-          </div>
-
+          {/* Description */}
           <div>
             <label className="block text-xs font-semibold text-slate-300 mb-1">
               รายละเอียดสินค้าเพิ่มเติม

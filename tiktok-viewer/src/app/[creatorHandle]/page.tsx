@@ -2,7 +2,16 @@
 
 import React, { useState, useEffect } from 'react';
 import { useParams } from 'next/navigation';
-import { ExternalLink, User as UserIcon, LogOut, CheckCircle2, ShoppingBag } from 'lucide-react';
+import {
+  ExternalLink,
+  User as UserIcon,
+  LogOut,
+  CheckCircle2,
+  ShoppingBag,
+  Search,
+  X,
+  PackageOpen,
+} from 'lucide-react';
 import { ICategory, IProduct, ProductType } from '@tiktok/types';
 import { CategoryFilter } from '@/components/CategoryFilter';
 import { ProductCard } from '@/components/ProductCard';
@@ -96,6 +105,7 @@ export default function CreatorShowcasePage() {
   const decodedHandle = decodeURIComponent(rawHandle || '@creator');
 
   const [activeCategoryId, setActiveCategoryId] = useState<string | null>(null);
+  const [searchQuery, setSearchTerm] = useState('');
   const [currentUser, setCurrentUser] = useState<any>(null);
   const [selectedProductForBuy, setSelectedProductForBuy] = useState<IProduct | null>(null);
   const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
@@ -113,20 +123,25 @@ export default function CreatorShowcasePage() {
       .catch(() => {});
   }, []);
 
-  const filteredProducts = activeCategoryId
-    ? DEFAULT_PRODUCTS.filter((p) => p.categoryId === activeCategoryId)
-    : DEFAULT_PRODUCTS;
+  // Filter products by category AND search query
+  const filteredProducts = DEFAULT_PRODUCTS.filter((p) => {
+    const matchesCategory = activeCategoryId ? p.categoryId === activeCategoryId : true;
+    const matchesQuery = searchQuery.trim() === ''
+      ? true
+      : p.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        (p.description && p.description.toLowerCase().includes(searchQuery.toLowerCase()));
+
+    return matchesCategory && matchesQuery;
+  });
 
   // Handle Buy click
   const handleBuyClick = async (product: IProduct) => {
-    // Check if user is logged in
     if (!currentUser) {
       setSelectedProductForBuy(product);
       setIsAuthModalOpen(true);
       return;
     }
 
-    // User is logged in: record click and redirect to TikTok Shop
     await executeRedirectToShop(product);
   };
 
@@ -155,7 +170,6 @@ export default function CreatorShowcasePage() {
     setCurrentUser(user);
     setIsAuthModalOpen(false);
 
-    // If there was a pending product to buy, redirect immediately!
     if (selectedProductForBuy) {
       await executeRedirectToShop(selectedProductForBuy);
       setSelectedProductForBuy(null);
@@ -228,6 +242,28 @@ export default function CreatorShowcasePage() {
         </div>
       </div>
 
+      {/* Product Search Bar */}
+      <div className="px-4 pt-3.5 pb-1">
+        <div className="relative flex items-center">
+          <Search className="w-4 h-4 text-neutral-400 absolute left-3.5 pointer-events-none" />
+          <input
+            type="text"
+            value={searchQuery}
+            onChange={(e) => setSearchTerm(e.target.value)}
+            placeholder="ค้นหาชื่อสินค้า หรือรายละเอียด..."
+            className="w-full bg-neutral-800/90 border border-neutral-700/80 rounded-xl pl-9 pr-8 py-2 text-xs text-white placeholder-neutral-400 focus:outline-none focus:border-tiktok-red transition-all shadow-inner"
+          />
+          {searchQuery && (
+            <button
+              onClick={() => setSearchTerm('')}
+              className="absolute right-2.5 p-1 text-neutral-400 hover:text-white"
+            >
+              <X className="w-3.5 h-3.5" />
+            </button>
+          )}
+        </div>
+      </div>
+
       {/* Category Filter */}
       <CategoryFilter
         categories={DEFAULT_CATEGORIES}
@@ -239,23 +275,49 @@ export default function CreatorShowcasePage() {
       <div className="p-4 flex-1">
         <div className="flex items-center justify-between mb-3 px-0.5">
           <span className="text-xs font-semibold text-neutral-300">
-            รายการสินค้า ({filteredProducts.length})
+            {searchQuery ? `ผลการค้นหา "${searchQuery}" (${filteredProducts.length})` : `รายการสินค้า (${filteredProducts.length})`}
           </span>
           <span className="text-[11px] text-neutral-500">
             กดซื้อเพื่อไปยัง TikTok Shop
           </span>
         </div>
 
-        <div className="grid grid-cols-2 gap-3">
-          {filteredProducts.map((product) => (
-            <ProductCard
-              key={product.id}
-              product={product}
-              onBuy={handleBuyClick}
-              onWatchVideo={(url, title) => setActiveVideo({ url, title })}
-            />
-          ))}
-        </div>
+        {filteredProducts.length > 0 ? (
+          <div className="grid grid-cols-2 gap-3">
+            {filteredProducts.map((product) => (
+              <ProductCard
+                key={product.id}
+                product={product}
+                onBuy={handleBuyClick}
+                onWatchVideo={(url, title) => setActiveVideo({ url, title })}
+              />
+            ))}
+          </div>
+        ) : (
+          /* Empty Search State */
+          <div className="py-12 flex flex-col items-center justify-center text-center space-y-3">
+            <div className="w-12 h-12 rounded-full bg-neutral-800 border border-neutral-700 flex items-center justify-center text-neutral-400">
+              <PackageOpen className="w-6 h-6" />
+            </div>
+            <div>
+              <p className="text-sm font-semibold text-white">ไม่พบสินค้าที่คุณค้นหา</p>
+              <p className="text-xs text-neutral-400 mt-0.5">
+                ลองค้นหาด้วยคำอื่น หรือเลือกหมวดหมู่อื่นดูนะครับ
+              </p>
+            </div>
+            {searchQuery && (
+              <button
+                onClick={() => {
+                  setSearchTerm('');
+                  setActiveCategoryId(null);
+                }}
+                className="text-xs text-tiktok-red hover:underline font-medium pt-1"
+              >
+                ล้างคำค้นหาและแสดงสินค้าทั้งหมด
+              </button>
+            )}
+          </div>
+        )}
       </div>
 
       {/* Auth Modal (Login to Buy) */}
