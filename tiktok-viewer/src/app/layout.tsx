@@ -4,6 +4,9 @@ import './globals.css';
 export const metadata: Metadata = {
   title: 'TikTok Catalog Showcase',
   description: 'รวมสินค้าและคลิปรีวิวจาก Creator ทาง TikTok',
+  other: {
+    'tiktok-developers-site-verification': 'ARosiOg4YtW4Zlz8SA097Hd9QvmrnBao',
+  },
 };
 
 export default function RootLayout({
