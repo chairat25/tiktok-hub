@@ -1,6 +1,9 @@
 version: '3.8'
 
 services:
+  # -------------------------------------------------------------
+  # 1. Database Service: PostgreSQL 16
+  # -------------------------------------------------------------
   tiktok-postgres:
     image: postgres:16-alpine
     container_name: tiktok-postgres
@@ -18,6 +21,52 @@ services:
       interval: 5s
       timeout: 5s
       retries: 5
+
+  # -------------------------------------------------------------
+  # 2. Web Storefront Service: TikTok Viewer (Port 3000)
+  # -------------------------------------------------------------
+  tiktok-viewer:
+    build:
+      context: .
+      dockerfile: ./tiktok-viewer/Dockerfile
+    container_name: tiktok-viewer
+    restart: always
+    environment:
+      - NODE_ENV=development
+      - PORT=3000
+      - DATABASE_URL=postgresql://${DB_USER:-postgres}:${DB_PASSWORD:-postgres}@tiktok-postgres:5432/${DB_NAME:-tiktok_catalog}
+      - AUTH_SECRET=${AUTH_SECRET:-tiktok_showcase_super_secret_jwt_token_2026}
+    ports:
+      - "${PORT_VIEWER:-3000}:3000"
+    volumes:
+      - ./tiktok-viewer/src:/app/tiktok-viewer/src
+      - ./packages:/app/packages
+    depends_on:
+      tiktok-postgres:
+        condition: service_healthy
+
+  # -------------------------------------------------------------
+  # 3. Web Admin Service: TikTok Backoffice (Port 3001)
+  # -------------------------------------------------------------
+  tiktok-backoffice:
+    build:
+      context: .
+      dockerfile: ./tiktok-backoffice/Dockerfile
+    container_name: tiktok-backoffice
+    restart: always
+    environment:
+      - NODE_ENV=development
+      - PORT=3001
+      - DATABASE_URL=postgresql://${DB_USER:-postgres}:${DB_PASSWORD:-postgres}@tiktok-postgres:5432/${DB_NAME:-tiktok_catalog}
+      - AUTH_SECRET=${AUTH_SECRET:-tiktok_showcase_super_secret_jwt_token_2026}
+    ports:
+      - "${PORT_BACKOFFICE:-3001}:3001"
+    volumes:
+      - ./tiktok-backoffice/src:/app/tiktok-backoffice/src
+      - ./packages:/app/packages
+    depends_on:
+      tiktok-postgres:
+        condition: service_healthy
 
 volumes:
   postgres_data:

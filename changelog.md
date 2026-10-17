@@ -80,30 +80,38 @@ tiktok/
 
 ---
 
-### 5. วิธีการรันระบบ (How to Run)
+### 5. วิธีการรันระบบ (ทั้งแบบรวมคำสั่งเดียว และแบบแยกย่อย)
 
-#### ขั้นตอนที่ 1: รันฐานข้อมูล Local PostgreSQL
+#### 5.1 แบบที่ 1: สั่งรันรวมทีเดียวทั้งหมดผ่าน Docker (All-in-One)
+คำสั่งเดียวเปิดครบทั้ง 3 บริการ (ฐานข้อมูล PostgreSQL + หน้าร้าน Viewer พอร์ต 3000 + หลังบ้าน Backoffice พอร์ต 3001):
 ```bash
 cd tiktok
 docker compose up -d
+# หรือใช้ yarn docker:up
 ```
+*เปิดเบราว์เซอร์:*
+- หน้าร้าน Viewer: `http://localhost:3000/@pond`
+- หลังบ้าน Backoffice: `http://localhost:3001`
+- ปิดระบบทั้งหมด: `docker compose down`
 
-#### ขั้นตอนที่ 2: ติดตั้ง Dependencies (Yarn เท่านั้น)
-```bash
-cd tiktok
-yarn install
-```
+---
 
-#### ขั้นตอนที่ 3: สตาร์ทระบบเพื่อทดสอบ
-* **รัน TikTok Viewer (พอร์ต 3000):**
+#### 5.2 แบบที่ 2: สั่งรันแยกย่อยราย Service (Selective Services)
+* **รันเฉพาะฐานข้อมูลใน Docker แล้วรันโค้ดเว็บผ่านเครื่อง (แนะนำสำหรับตอนพัฒนาโค้ด):**
   ```bash
-  yarn dev:viewer
-  # เปิดเบราว์เซอร์: http://localhost:3000/@pond
+  cd tiktok
+  docker compose up -d tiktok-postgres    # สตาร์ทเฉพาะฐานข้อมูล
+  yarn dev                                # สตาร์ททั้ง 2 เว็บพร้อมกันใน terminal
   ```
-* **รัน TikTok Backoffice (พอร์ต 3001):**
+* **แยกรันเฉพาะเว็บที่ต้องการผ่าน Yarn:**
   ```bash
-  yarn dev:backoffice
-  # เปิดเบราว์เซอร์: http://localhost:3001
+  yarn dev:viewer        # รันเฉพาะหน้าร้าน Viewer (พอร์ต 3000)
+  yarn dev:backoffice    # รันเฉพาะหลังบ้าน Backoffice (พอร์ต 3001)
+  ```
+* **แยกรันเฉพาะเว็บที่ต้องการผ่าน Docker:**
+  ```bash
+  docker compose up -d tiktok-viewer       # รันเฉพาะหน้าร้านใน Docker
+  docker compose up -d tiktok-backoffice   # รันเฉพาะหลังบ้านใน Docker
   ```
 
 ---

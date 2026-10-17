@@ -8,8 +8,14 @@
     "packages/*"
   ],
   "scripts": {
+    "dev": "yarn dev:viewer & yarn dev:backoffice",
     "dev:viewer": "yarn workspace tiktok-viewer dev",
     "dev:backoffice": "yarn workspace tiktok-backoffice dev",
+    "docker:up": "docker compose up -d",
+    "docker:down": "docker compose down",
+    "docker:db": "docker compose up -d tiktok-postgres",
+    "docker:viewer": "docker compose up -d tiktok-viewer",
+    "docker:backoffice": "docker compose up -d tiktok-backoffice",
     "build": "yarn workspaces run build"
   },
   "devDependencies": {
