@@ -6,10 +6,11 @@ import {
   UpdateDateColumn,
   ManyToOne,
   JoinColumn,
+  type Relation,
 } from 'typeorm';
 import { ProductType } from '@tiktok/types';
-import { User } from './User';
-import { Category } from './Category';
+import type { User } from './User';
+import type { Category } from './Category';
 
 @Entity('products')
 export class Product {
@@ -19,16 +20,16 @@ export class Product {
   @Column({ type: 'uuid' })
   creatorId!: string;
 
-  @ManyToOne(() => User, (user) => user.products, { onDelete: 'CASCADE' })
+  @ManyToOne('User', (user: User) => user.products, { onDelete: 'CASCADE' })
   @JoinColumn({ name: 'creatorId' })
-  creator?: User;
+  creator?: Relation<User>;
 
   @Column({ type: 'uuid' })
   categoryId!: string;
 
-  @ManyToOne(() => Category, (category) => category.products, { onDelete: 'CASCADE' })
+  @ManyToOne('Category', (category: Category) => category.products, { onDelete: 'CASCADE' })
   @JoinColumn({ name: 'categoryId' })
-  category?: Category;
+  category?: Relation<Category>;
 
   @Column({ type: 'varchar', length: 255 })
   title!: string;

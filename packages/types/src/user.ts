@@ -12,6 +12,9 @@ export interface IUser {
   creatorHandle: string; // e.g., "@pond"
   tiktokShopUrl?: string; // e.g., "https://shop.tiktok.com/..."
   avatarUrl?: string;
+  tiktokOpenId?: string;
+  tiktokUsername?: string;
+  tiktokAvatarUrl?: string;
   role: UserRole;
   isActive: boolean;
   createdAt: Date;

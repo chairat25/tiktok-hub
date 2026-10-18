@@ -51,7 +51,8 @@ export const Sidebar: React.FC<SidebarProps> = ({ currentUser }) => {
   ];
 
   const creatorHandle = currentUser?.creatorHandle || '@pond';
-  const viewerUrl = `http://localhost:3000/${creatorHandle}`;
+  const baseViewerUrl = process.env.NEXT_PUBLIC_VIEWER_URL || 'https://tiktok-hub-six.vercel.app';
+  const viewerUrl = `${baseViewerUrl.replace(/\/$/, '')}/${creatorHandle.replace(/^@/, '')}`;
 
   return (
     <aside className="w-64 bg-slate-900 border-r border-slate-800 flex flex-col justify-between shrink-0 h-screen sticky top-0">

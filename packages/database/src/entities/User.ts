@@ -5,10 +5,11 @@ import {
   CreateDateColumn,
   UpdateDateColumn,
   OneToMany,
+  type Relation,
 } from 'typeorm';
 import { UserRole } from '@tiktok/types';
-import { Category } from './Category';
-import { Product } from './Product';
+import type { Category } from './Category';
+import type { Product } from './Product';
 
 @Entity('users')
 export class User {
@@ -23,6 +24,18 @@ export class User {
 
   @Column({ type: 'varchar', length: 100, unique: true })
   creatorHandle!: string;
+
+  @Column({ type: 'varchar', length: 255, nullable: true })
+  passwordHash?: string;
+
+  @Column({ type: 'varchar', length: 100, nullable: true, unique: true })
+  tiktokOpenId?: string;
+
+  @Column({ type: 'varchar', length: 100, nullable: true })
+  tiktokUsername?: string;
+
+  @Column({ type: 'text', nullable: true })
+  tiktokAvatarUrl?: string;
 
   @Column({ type: 'text', nullable: true })
   tiktokShopUrl?: string;
@@ -40,11 +53,11 @@ export class User {
   @Column({ type: 'boolean', default: true })
   isActive!: boolean;
 
-  @OneToMany(() => Category, (category) => category.creator)
-  categories?: Category[];
+  @OneToMany('Category', (category: Category) => category.creator)
+  categories?: Relation<Category>[];
 
-  @OneToMany(() => Product, (product) => product.creator)
-  products?: Product[];
+  @OneToMany('Product', (product: Product) => product.creator)
+  products?: Relation<Product>[];
 
   @CreateDateColumn()
   createdAt!: Date;

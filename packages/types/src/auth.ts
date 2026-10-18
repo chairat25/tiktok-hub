@@ -25,6 +25,8 @@ export interface AuthSession {
     creatorHandle?: string;
     role: UserRole;
     avatarUrl?: string;
+    tiktokOpenId?: string;
+    tiktokUsername?: string;
   };
   expires: string;
 }
