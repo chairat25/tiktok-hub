@@ -144,25 +144,32 @@ docker compose up -d
   - พัฒนาและ Deploy Endpoint รองรับ OAuth Redirect: `/api/auth/callback` เพื่อรับ Code/State จาก TikTok Login Kit และพากลับสู่หน้าร้านค้า
   - จัดเตรียมข้อมูล App Submission ครบถ้วน (Category, Description, Login Kit Scope Explanation, Demo Video, Redirect URI)
 
+* **Real Authentication & TikTok Account Linking (SSO):**
+  - ยกเลิกระบบ Mock/Bypass Login 100% ป้องกันคนนอกเข้าถึงแดชบอร์ด
+  - เพิ่มระบบสมัครเปิดร้านค้าใหม่ (`/api/auth/register`) ด้วย Email + Password (เข้ารหัสด้วย `bcryptjs` Salt & Hash)
+  - เพิ่มระบบเข้าสู่ระบบจริง (`/api/auth/login`) ตรวจสอบความถูกต้องกับ Supabase PostgreSQL
+  - เพิ่มฟังก์ชัน **TikTok Account Linking** ในหน้า `/dashboard/settings`: ผูกหรือยกเลิกการผูกบัญชี TikTok เข้ากับร้านค้า
+  - เชื่อมต่อ TikTok OAuth Authorize & Callback Flow: รองรับทั้งการเข้าสู่ระบบผ่าน TikTok Account (SSO) และการผูกบัญชีจากในหลังบ้าน
+  - แก้ไขปัญหา Circular TypeORM Metadata ใน Next.js ด้วย `Relation<T>` และ `import type`
+  - รองรับ Zero-Emoji UI มาตรฐานด้วย Lucide Icons
+
 ---
 
 ### Handoff Block
 ```
-[KEYWORD: tiktok-app-review-ready]
+[KEYWORD: tiktok-real-auth-ready]
 - Completed:
-  1. เชื่อมต่อ Supabase Pooler (IPv4) และสร้างตารางครบถ้วน 0 rows
-  2. เชื่อมต่อ Cloudflare R2 สำหรับอัปโหลดและแคชรูปภาพ
-  3. ออกแบบไอคอนแอป 1024x1024 tiktok/app-icon.jpg
-  4. พัฒนาหน้า /terms และ /privacy บน tiktok-viewer
-  5. Deploy tiktok-viewer ขึ้น Vercel สำเร็จสมบูรณ์แบบ
-  6. ยืนยัน URL Prefix Verification บน TikTok ผ่าน 100%
-  7. พัฒนาและ Deploy OAuth Callback Endpoint /api/auth/callback
-  8. กรอกข้อมูล App Review ครบถ้วน (Login Kit, Scopes, Redirect URI, Demo Video) พร้อมส่งตรวจ
-- Pending for Next Sessions / Next Agent:
-  1. กด Submit for Review บน TikTok Developer Portal และรอผลการอนุมัติ
-  2. Deploy tiktok-backoffice ขึ้น Vercel เป็นอีก 1 โปรเจกต์ (หรือรันคู่กัน)
-  3. ทดสอบการสมัคร Creator ร้านแรก และเพิ่มสินค้าจริง
-- Next Action Prompt: ดำเนินการต่อในส่วน Backoffice หรือสร้าง Creator ร้านแรกเพื่อทดสอบระบบแคตตาล็อก
+  1. Real Email + Password Authentication & Creator Registration
+  2. TikTok OAuth SSO Login & Account Linking ใน Settings
+  3. API Endpoints: /api/auth/register, /api/auth/login, /api/auth/tiktok/authorize, /api/auth/callback, /api/auth/tiktok/unlink, /api/creator/settings
+  4. Build ตรวจสอบผ่านทั้ง tiktok-viewer และ tiktok-backoffice (0 errors)
+- Pending for Next Steps:
+  1. git push origin main เพื่อให้ Vercel Deploy ทั้ง Viewer และ Backoffice อัตโนมัติ
+  2. ใส่ TIKTOK_CLIENT_KEY และ TIKTOK_CLIENT_SECRET บน Vercel Environment Variables
+  3. เพิ่ม Redirect URI: https://tiktok-hub-backoffice.vercel.app/api/auth/callback บน TikTok Developer Portal
+  4. ทดสอบสมัครเปิดร้าน Creator ร้านแรก และทดสอบผูกบัญชี TikTok ใน Settings
+- Next Action Prompt: ทดสอบสมัครบัญชีร้านค้าจริงบน Backoffice และทดสอบฟังก์ชันเชื่อมต่อ TikTok ในเมนู Settings
 ```
+
 
 
