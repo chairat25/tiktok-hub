@@ -5,11 +5,11 @@ import {
   CreateDateColumn,
   UpdateDateColumn,
   OneToMany,
-  type Relation,
+  Relation,
 } from 'typeorm';
 import { UserRole } from '@tiktok/types';
-import type { Category } from './Category';
-import type { Product } from './Product';
+import { Category } from './Category';
+import { Product } from './Product';
 
 @Entity('users')
 export class User {
@@ -53,10 +53,10 @@ export class User {
   @Column({ type: 'boolean', default: true })
   isActive!: boolean;
 
-  @OneToMany('Category', (category: Category) => category.creator)
+  @OneToMany(() => Category, (category) => category.creator)
   categories?: Relation<Category>[];
 
-  @OneToMany('Product', (product: Product) => product.creator)
+  @OneToMany(() => Product, (product) => product.creator)
   products?: Relation<Product>[];
 
   @CreateDateColumn()

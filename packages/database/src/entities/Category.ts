@@ -7,10 +7,10 @@ import {
   ManyToOne,
   OneToMany,
   JoinColumn,
-  type Relation,
+  Relation,
 } from 'typeorm';
-import type { User } from './User';
-import type { Product } from './Product';
+import { User } from './User';
+import { Product } from './Product';
 
 @Entity('categories')
 export class Category {
@@ -20,7 +20,7 @@ export class Category {
   @Column({ type: 'uuid' })
   creatorId!: string;
 
-  @ManyToOne('User', (user: User) => user.categories, { onDelete: 'CASCADE' })
+  @ManyToOne(() => User, (user) => user.categories, { onDelete: 'CASCADE' })
   @JoinColumn({ name: 'creatorId' })
   creator?: Relation<User>;
 
@@ -36,7 +36,7 @@ export class Category {
   @Column({ type: 'boolean', default: true })
   isActive!: boolean;
 
-  @OneToMany('Product', (product: Product) => product.category)
+  @OneToMany(() => Product, (product) => product.category)
   products?: Relation<Product>[];
 
   @CreateDateColumn()

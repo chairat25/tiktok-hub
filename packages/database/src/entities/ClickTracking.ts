@@ -5,10 +5,10 @@ import {
   CreateDateColumn,
   ManyToOne,
   JoinColumn,
-  type Relation,
+  Relation,
 } from 'typeorm';
-import type { Product } from './Product';
-import type { User } from './User';
+import { Product } from './Product';
+import { User } from './User';
 
 @Entity('click_trackings')
 export class ClickTracking {
@@ -18,21 +18,21 @@ export class ClickTracking {
   @Column({ type: 'uuid' })
   productId!: string;
 
-  @ManyToOne('Product', { onDelete: 'CASCADE' })
+  @ManyToOne(() => Product, { onDelete: 'CASCADE' })
   @JoinColumn({ name: 'productId' })
   product?: Relation<Product>;
 
   @Column({ type: 'uuid' })
   creatorId!: string;
 
-  @ManyToOne('User', { onDelete: 'CASCADE' })
+  @ManyToOne(() => User, { onDelete: 'CASCADE' })
   @JoinColumn({ name: 'creatorId' })
   creator?: Relation<User>;
 
   @Column({ type: 'uuid', nullable: true })
   viewerUserId?: string;
 
-  @ManyToOne('User', { onDelete: 'SET NULL', nullable: true })
+  @ManyToOne(() => User, { onDelete: 'SET NULL', nullable: true })
   @JoinColumn({ name: 'viewerUserId' })
   viewerUser?: Relation<User>;
 
