@@ -17,6 +17,15 @@ import { CategoryFilter } from '@/components/CategoryFilter';
 import { ProductCard } from '@/components/ProductCard';
 import { AuthModal } from '@/components/AuthModal';
 import { VideoModal } from '@/components/VideoModal';
+import { ApiError, MeResponse, PublicUserView, apiRequest, errorMessage, postJson } from '@tiktok/server/client';
+
+const VIEWER_AUTH_ERRORS: Record<string, string> = {
+  tiktok_denied: 'เข้าสู่ระบบด้วย TikTok ไม่สำเร็จ กรุณาลองใหม่อีกครั้ง',
+  account_disabled: 'บัญชีนี้ถูกระงับการใช้งาน',
+  rate_limited: 'มีการเรียกใช้งานถี่เกินไป กรุณาลองใหม่ภายหลัง',
+  missing_credentials: 'ระบบยังไม่พร้อมให้เข้าสู่ระบบด้วย TikTok',
+  server_error: 'เกิดข้อผิดพลาด กรุณาลองใหม่อีกครั้ง',
+};
 
 // Sample default data for demonstration & immediate testing
 const DEFAULT_CATEGORIES: ICategory[] = [
@@ -106,21 +115,22 @@ export default function CreatorShowcasePage() {
 
   const [activeCategoryId, setActiveCategoryId] = useState<string | null>(null);
   const [searchQuery, setSearchTerm] = useState('');
-  const [currentUser, setCurrentUser] = useState<any>(null);
+  const [currentUser, setCurrentUser] = useState<PublicUserView | null>(null);
+  const [authError, setAuthError] = useState<string | null>(null);
   const [selectedProductForBuy, setSelectedProductForBuy] = useState<IProduct | null>(null);
   const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
   const [activeVideo, setActiveVideo] = useState<{ url: string; title: string } | null>(null);
 
   // Check login status on mount
   useEffect(() => {
-    fetch('/api/auth/me')
-      .then((res) => res.json())
-      .then((data) => {
-        if (data.authenticated) {
-          setCurrentUser(data.user);
-        }
-      })
-      .catch(() => {});
+    apiRequest<MeResponse>('/api/auth/me')
+      .then((data) => setCurrentUser(data.authenticated ? data.user : null))
+      .catch(() => setCurrentUser(null));
+
+    const error = new URLSearchParams(window.location.search).get('error');
+    if (error) {
+      setAuthError(VIEWER_AUTH_ERRORS[error] ?? VIEWER_AUTH_ERRORS.server_error);
+    }
   }, []);
 
   // Filter products by category AND search query
@@ -147,42 +157,41 @@ export default function CreatorShowcasePage() {
 
   const executeRedirectToShop = async (product: IProduct) => {
     try {
-      const res = await fetch('/api/track-and-buy', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          productId: product.id,
-          creatorId: product.creatorId,
-          targetUrl: product.tiktokProductUrl,
-        }),
+      const { redirectUrl } = await postJson<{ redirectUrl: string }>('/api/track-and-buy', {
+        productId: product.id,
+        creatorId: product.creatorId,
+        targetUrl: product.tiktokProductUrl,
       });
-
-      const data = await res.json();
-      if (data.redirectUrl) {
-        window.open(data.redirectUrl, '_blank');
+      window.open(redirectUrl, '_blank', 'noopener,noreferrer');
+    } catch (err: unknown) {
+      if (err instanceof ApiError && err.status === 401) {
+        setCurrentUser(null);
+        setSelectedProductForBuy(product);
+        setIsAuthModalOpen(true);
+        return;
       }
-    } catch {
-      window.open(product.tiktokProductUrl, '_blank');
-    }
-  };
-
-  const handleLoginSuccess = async (user: any) => {
-    setCurrentUser(user);
-    setIsAuthModalOpen(false);
-
-    if (selectedProductForBuy) {
-      await executeRedirectToShop(selectedProductForBuy);
-      setSelectedProductForBuy(null);
+      setAuthError(errorMessage(err));
     }
   };
 
   const handleLogout = async () => {
-    await fetch('/api/auth/logout', { method: 'POST' });
-    setCurrentUser(null);
+    try {
+      await apiRequest('/api/auth/logout', { method: 'POST' });
+    } finally {
+      setCurrentUser(null);
+    }
   };
 
   return (
     <div className="flex flex-col flex-1 pb-16">
+      {authError && (
+        <div role="alert" className="m-3 mb-0 p-2.5 rounded-lg bg-red-950/60 border border-red-800 text-red-300 text-xs flex justify-between gap-2">
+          <span>{authError}</span>
+          <button onClick={() => setAuthError(null)} aria-label="ปิดข้อความ">
+            <X className="w-3.5 h-3.5" />
+          </button>
+        </div>
+      )}
       {/* Top Banner / Creator Header */}
       <div className="p-5 pb-4 border-b border-tiktok-border bg-gradient-to-b from-neutral-800/80 to-neutral-900/90 text-center relative">
         {/* User Status Bar */}
@@ -325,7 +334,7 @@ export default function CreatorShowcasePage() {
         isOpen={isAuthModalOpen}
         onClose={() => setIsAuthModalOpen(false)}
         product={selectedProductForBuy}
-        onLoginSuccess={handleLoginSuccess}
+        returnTo={`/${encodeURIComponent(decodedHandle)}`}
       />
 
       {/* Video Review Modal */}

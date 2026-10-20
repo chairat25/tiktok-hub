@@ -173,3 +173,65 @@ docker compose up -d
 
 
 
+
+---
+
+## [2026-10-20] - Security Hardening (Auth / RBAC / OAuth) + Clean Architecture
+
+### 1. ปัญหาที่พบจาก Security Audit
+| ระดับ | ปัญหา |
+|---|---|
+| CRITICAL | `AUTH_SECRET` จริงตรงกับค่า default ที่ commit ไว้ → ปลอม JWT `SUPER_ADMIN` ได้ |
+| HIGH | OAuth `state` ไม่ผูกกับ browser → forced account linking → ยึดบัญชีได้ |
+| HIGH | Viewer login ไม่ยืนยันตัวตน (กรอก email อะไรก็ได้) |
+| HIGH | `/api/upload` ไม่ต้อง login + SSRF ผ่าน `remoteUrl` + รับ HTML/SVG (stored XSS) |
+| HIGH | Unlink TikTok ไม่ทำงานจริง (`update(undefined)` ไม่เขียนอะไร) |
+| MEDIUM | Open redirect (viewer callback, track-and-buy), Host header injection, ไม่มี rate limit, account enumeration, JWT revoke ไม่ได้, ไม่ validate URL/handle, ส่ง `passwordHash` กลับ client, DB TLS ไม่ verify |
+| LOW | ไม่มี security headers/CSP, `images.remotePatterns: '**'`, ส่ง `err.message` ดิบกลับ client |
+
+### 2. สถาปัตยกรรมใหม่ (Clean Architecture)
+```
+packages/
+├── types/      # Shared enums/DTO + ApiResponse envelope
+├── auth/       # CORE (ไม่มี Next/TypeORM): domain (errors, rbac, user, session-policy)
+│               #   application (ports, zod schemas, rate-limit, use-cases), security (bcrypt, tokens)
+├── database/   # Infrastructure: TypeORM entities + repository adapters + PostgresRateLimiter
+│               #   migrations/001_auth_hardening.sql
+└── server/     # Next.js adapter: composition root, publicRoute/protectedRoute, cookies,
+                #   TikTok client, route factories, edge middleware (CSP), client.ts (browser)
+tiktok-*/src/app/api/**/route.ts   # บาง: เรียก route factory จาก @tiktok/server
+tiktok-*/src/server/**             # use-case เฉพาะ app (media upload, click tracking)
+```
+Dependency rule: `app → server → (auth ← database)` ส่วน `auth` ไม่ import ใครนอกจาก `types`
+
+### 3. Security Controls
+- **Session:** opaque random 256-bit token, เก็บใน DB เป็น SHA-256, audience แยก viewer/backoffice, idle + absolute expiry, revoke ตอน logout/unlink, rotate ทุกครั้งที่ login (กัน fixation), role/isActive อ่านจาก DB ทุก request
+- **Cookie:** `HttpOnly; SameSite=Lax; Secure` + prefix `__Host-` เมื่อ APP_URL เป็น https
+- **OAuth:** `state` สุ่ม + เก็บใน cookie `__Host-tt_oauth` (10 นาที) + ผูก userId ในโหมด link + `returnTo` เฉพาะ path same-origin + redirect URI มาจาก `APP_URL` เท่านั้น
+- **RBAC:** `protectedRoute(audience, { permission })` deny-by-default, `ACCESS_BACKOFFICE`, `UPLOAD_MEDIA` permission ใหม่, sidebar ซ่อนเมนูตามสิทธิ์
+- **CSRF:** ตรวจ `Origin` + `Sec-Fetch-Site` ทุก POST/PUT/PATCH/DELETE + บังคับ `application/json`
+- **Rate limit (Postgres, atomic upsert):** login 20/15m ต่อ IP + 5/15m ต่อ email, register 5/ชม., OAuth, upload, oEmbed, click
+- **Password:** bcrypt cost 12, ไม่ trim, 8–72 bytes, dummy-hash กัน timing enumeration, error ข้อความเดียว
+- **Upload:** ต้อง login + permission, sniff magic bytes (JPEG/PNG/WebP/GIF), 5MB, key สุ่มฝั่ง server, remote fetch เฉพาะ TikTok CDN + `redirect: 'error'`
+- **Headers:** nonce CSP + `strict-dynamic`, `frame-ancestors 'none'`, HSTS, nosniff, Referrer-Policy, Permissions-Policy, COOP
+- **DB:** TLS verify by default (`DB_SSL_CA`), `synchronize` ปิดใน production, RLS เปิดทุกตาราง (กัน Supabase anon REST API)
+
+### 4. ขั้นตอน Deploy (ต้องทำตามลำดับ)
+1. รัน `packages/database/migrations/001_auth_hardening.sql` ใน Supabase SQL editor (idempotent)
+   - ถ้า `CREATE UNIQUE INDEX ... LOWER(...)` fail แปลว่ามี email/handle ซ้ำแบบตัวพิมพ์เล็ก-ใหญ่ ต้องแก้ข้อมูลก่อน
+2. ตั้ง env บน Vercel ทั้ง 2 project: `APP_URL` (origin จริงของแต่ละ app), `TIKTOK_CLIENT_KEY`, `TIKTOK_CLIENT_SECRET`, `DB_SSL_CA` (Supabase root CA), `R2_PUBLIC_URL`
+3. ลบ `AUTH_SECRET` ออก (ไม่ใช้แล้ว) — ค่าเก่ารั่วใน git history ถือว่า compromised
+4. TikTok Developer Portal: เพิ่ม redirect URI `<viewer APP_URL>/api/auth/callback`
+5. Session JWT เก่าใช้ไม่ได้ทันที ผู้ใช้ทุกคนต้อง login ใหม่ (ตั้งใจ)
+
+### 5. Tests
+`yarn test` (vitest) — 92 tests, coverage ~83% lines บน core/http/media. Smoke test end-to-end กับ Postgres local + `next start` ผ่านทุกข้อ (CSRF, SSRF, upload, rate limit, revoke, CSP nonce)
+
+### 6. งานค้าง
+- Products/Categories/Team ใน backoffice และหน้า viewer ยังเป็น mock data ฝั่ง client → ตอนทำ API จริงให้ใช้ `protectedRoute` + `assertCanManageCreatorData` และ track-and-buy ควร lookup URL จาก `productId` ใน DB แทนการเชื่อ `targetUrl`
+- STAFF ยังไม่มี membership ผูกกับ creator (ต้องมีตาราง `creator_members` ก่อนเปิดใช้ทีมงานจริง)
+- Dockerfile ยังรัน `yarn dev` (ใช้สำหรับ local เท่านั้น)
+- Per-IP rate limit เชื่อ `req.ip`/`x-real-ip` → ต้อง deploy บน Vercel หรือหลัง proxy ที่ overwrite header เหล่านี้
+- Login lockout per-email 15 นาที: ผู้ไม่หวังดีทำให้ email เหยื่อ login ไม่ได้ชั่วคราว (trade-off ที่ยอมรับ)
+- `avatarUrl`/`tiktokShopUrl` รับ https ทุกโดเมน: ถ้าจะแสดงให้ viewer เห็น ควรจำกัดโดเมน
+- Admin ลดสิทธิ์ creator เป็น VIEWER แล้ว TikTok login จะไม่ promote กลับ (ต้องปิดด้วย `isActive=false` หรือ role ที่ถูกต้อง)

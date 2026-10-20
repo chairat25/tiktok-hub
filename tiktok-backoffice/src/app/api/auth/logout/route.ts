@@ -1,7 +1,4 @@
-import { NextResponse } from 'next/server';
+import { logoutRoute } from '@tiktok/server';
 
-export async function POST() {
-  const response = NextResponse.json({ success: true, message: 'ออกจากระบบสำเร็จ' });
-  response.cookies.delete('backoffice_session');
-  return response;
-}
+export const dynamic = 'force-dynamic';
+export const POST = logoutRoute('backoffice');

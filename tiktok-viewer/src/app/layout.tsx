@@ -1,6 +1,9 @@
 import type { Metadata } from 'next';
 import './globals.css';
 
+// Pages must render per request so Next.js can apply the CSP nonce from middleware.
+export const dynamic = 'force-dynamic';
+
 export const metadata: Metadata = {
   title: 'TikTok Catalog Showcase',
   description: 'รวมสินค้าและคลิปรีวิวจาก Creator ทาง TikTok',

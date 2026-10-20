@@ -17,9 +17,13 @@
     "docker:db": "docker compose up -d tiktok-postgres",
     "docker:viewer": "docker compose up -d tiktok-viewer",
     "docker:backoffice": "docker compose up -d tiktok-backoffice",
-    "build": "yarn workspaces run build"
+    "build": "yarn workspaces run build",
+    "test": "vitest run",
+    "test:coverage": "vitest run --coverage"
   },
   "devDependencies": {
-    "typescript": "^5.4.5"
+    "@vitest/coverage-v8": "^2.1.9",
+    "typescript": "^5.4.5",
+    "vitest": "^2.1.9"
   }
 }

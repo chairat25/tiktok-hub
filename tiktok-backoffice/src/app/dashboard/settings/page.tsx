@@ -15,12 +15,22 @@ import {
   ArrowRight,
   ExternalLink,
 } from 'lucide-react';
+import { MeResponse, PublicUserView, apiRequest, errorMessage, postJson } from '@tiktok/server/client';
+
+const LINK_ERROR_MESSAGES: Record<string, string> = {
+  already_linked_other: 'บัญชี TikTok นี้ถูกผูกไว้กับร้านค้าอื่นแล้ว',
+  tiktok_denied: 'การเชื่อมต่อ TikTok ถูกยกเลิกหรือไม่สำเร็จ กรุณาลองใหม่อีกครั้ง',
+  unauthorized: 'เซสชันหมดอายุ กรุณาเข้าสู่ระบบใหม่แล้วลองอีกครั้ง',
+  missing_credentials: 'ระบบยังไม่พบคีย์ TikTok Client Credentials',
+  rate_limited: 'มีการเรียกใช้งานถี่เกินไป กรุณาลองใหม่ภายหลัง',
+  server_error: 'เกิดข้อผิดพลาดในการประมวลผล กรุณาลองใหม่อีกครั้ง',
+};
 
 function ShopSettingsForm() {
   const searchParams = useSearchParams();
 
-  const [creatorHandle, setCreatorHandle] = useState('@pond');
-  const [displayName, setDisplayName] = useState('Pond Official Showcase');
+  const [creatorHandle, setCreatorHandle] = useState('');
+  const [displayName, setDisplayName] = useState('');
   const [tiktokShopUrl, setTiktokShopUrl] = useState('');
   const [avatarUrl, setAvatarUrl] = useState('');
 
@@ -38,20 +48,19 @@ function ShopSettingsForm() {
   useEffect(() => {
     const fetchUserData = async () => {
       try {
-        const res = await fetch('/api/auth/me');
-        const data = await res.json();
+        const data = await apiRequest<MeResponse>('/api/auth/me');
         if (data.authenticated && data.user) {
           const u = data.user;
-          setCreatorHandle(u.creatorHandle || '@pond');
+          setCreatorHandle(u.creatorHandle || '');
           setDisplayName(u.displayName || '');
           setTiktokShopUrl(u.tiktokShopUrl || '');
           setAvatarUrl(u.avatarUrl || '');
-          setIsTikTokLinked(Boolean(u.isTikTokLinked || u.tiktokOpenId));
+          setIsTikTokLinked(u.isTikTokLinked);
           setTiktokUsername(u.tiktokUsername || null);
           setTiktokAvatarUrl(u.tiktokAvatarUrl || null);
         }
-      } catch (err) {
-        console.error('Failed to fetch user profile:', err);
+      } catch (err: unknown) {
+        setAlertMsg({ type: 'error', text: errorMessage(err, 'ไม่สามารถโหลดข้อมูลบัญชีได้') });
       } finally {
         setIsLoading(false);
       }
@@ -62,15 +71,12 @@ function ShopSettingsForm() {
     // Check query params from TikTok OAuth redirect
     const linked = searchParams.get('linked');
     const error = searchParams.get('error');
+    const linkErrorText = error ? LINK_ERROR_MESSAGES[error] : undefined;
 
     if (linked === 'success') {
       setAlertMsg({ type: 'success', text: 'เชื่อมต่อกับบัญชี TikTok สำเร็จเรียบร้อยแล้ว!' });
-    } else if (error === 'already_linked_other') {
-      setAlertMsg({ type: 'error', text: 'บัญชี TikTok นี้ถูกผูกไว้กับร้านค้าอื่นแล้ว' });
-    } else if (error === 'tiktok_denied') {
-      setAlertMsg({ type: 'error', text: 'การเชื่อมต่อ TikTok ถูกยกเลิกหรือไม่ได้รับอนุญาต' });
-    } else if (error === 'missing_credentials') {
-      setAlertMsg({ type: 'error', text: 'ระบบยังไม่พบคีย์ TikTok Client Credentials' });
+    } else if (linkErrorText) {
+      setAlertMsg({ type: 'error', text: linkErrorText });
     }
   }, [searchParams]);
 
@@ -81,25 +87,16 @@ function ShopSettingsForm() {
     setAlertMsg(null);
 
     try {
-      const res = await fetch('/api/creator/settings', {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          displayName,
-          creatorHandle,
-          tiktokShopUrl,
-          avatarUrl,
-        }),
-      });
-
-      const data = await res.json();
-      if (!res.ok || !data.success) {
-        throw new Error(data.message || 'บันทึกการตั้งค่าไม่สำเร็จ');
-      }
+      const data = await postJson<{ user: PublicUserView }>(
+        '/api/creator/settings',
+        { displayName, creatorHandle, tiktokShopUrl, avatarUrl },
+        'PUT'
+      );
+      setCreatorHandle(data.user.creatorHandle || '');
 
       setAlertMsg({ type: 'success', text: 'บันทึกข้อมูลการตั้งค่าร้านค้าเรียบร้อยแล้ว' });
-    } catch (err: any) {
-      setAlertMsg({ type: 'error', text: err.message || 'เกิดข้อผิดพลาดในการบันทึก' });
+    } catch (err: unknown) {
+      setAlertMsg({ type: 'error', text: errorMessage(err, 'เกิดข้อผิดพลาดในการบันทึก') });
     } finally {
       setIsSaving(false);
     }
@@ -118,18 +115,14 @@ function ShopSettingsForm() {
     setAlertMsg(null);
 
     try {
-      const res = await fetch('/api/auth/tiktok/unlink', { method: 'POST' });
-      const data = await res.json();
-      if (!res.ok || !data.success) {
-        throw new Error(data.message || 'ยกเลิกการเชื่อมต่อไม่สำเร็จ');
-      }
+      await apiRequest('/api/auth/tiktok/unlink', { method: 'POST' });
 
       setIsTikTokLinked(false);
       setTiktokUsername(null);
       setTiktokAvatarUrl(null);
       setAlertMsg({ type: 'success', text: 'ยกเลิกการเชื่อมต่อกับบัญชี TikTok เรียบร้อยแล้ว' });
-    } catch (err: any) {
-      setAlertMsg({ type: 'error', text: err.message || 'เกิดข้อผิดพลาดในการยกเลิกเชื่อมต่อ' });
+    } catch (err: unknown) {
+      setAlertMsg({ type: 'error', text: errorMessage(err, 'เกิดข้อผิดพลาดในการยกเลิกเชื่อมต่อ') });
     } finally {
       setIsUnlinking(false);
     }

@@ -4,6 +4,7 @@ import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { Sidebar } from '@/components/Sidebar';
 import { Loader2 } from 'lucide-react';
+import { MeResponse, PublicUserView, apiRequest } from '@tiktok/server/client';
 
 export default function DashboardLayout({
   children,
@@ -11,12 +12,11 @@ export default function DashboardLayout({
   children: React.ReactNode;
 }) {
   const router = useRouter();
-  const [currentUser, setCurrentUser] = useState<any>(null);
+  const [currentUser, setCurrentUser] = useState<PublicUserView | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
-    fetch('/api/auth/me')
-      .then((res) => res.json())
+    apiRequest<MeResponse>('/api/auth/me')
       .then((data) => {
         if (!data.authenticated) {
           // If not authenticated, redirect to login
