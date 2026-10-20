@@ -15,6 +15,15 @@ import {
   AlertCircle,
   CheckCircle2,
 } from 'lucide-react';
+import { errorMessage, postJson } from '@tiktok/server/client';
+
+const OAUTH_ERROR_MESSAGES: Record<string, string> = {
+  tiktok_denied: 'การยืนยันตัวตนผ่าน TikTok ถูกยกเลิกหรือไม่สำเร็จ กรุณาลองใหม่อีกครั้ง',
+  missing_credentials: 'ยังไม่ได้ตั้งค่า TikTok Client Credentials ในระบบ',
+  account_disabled: 'บัญชีนี้ถูกระงับการใช้งาน กรุณาติดต่อผู้ดูแลระบบ',
+  rate_limited: 'มีการเรียกใช้งานถี่เกินไป กรุณาลองใหม่ภายหลัง',
+  server_error: 'เกิดข้อผิดพลาดในการประมวลผล กรุณาลองใหม่อีกครั้ง',
+};
 
 function BackofficeLoginForm() {
   const router = useRouter();
@@ -35,14 +44,9 @@ function BackofficeLoginForm() {
   // Handle URL errors (e.g. from TikTok OAuth redirect)
   useEffect(() => {
     const error = searchParams.get('error');
-    if (error === 'tiktok_denied') {
-      setErrorMsg('การยืนยันตัวตนผ่าน TikTok ถูกยกเลิกหรือไม่ได้รับอนุญาต');
-    } else if (error === 'missing_credentials') {
-      setErrorMsg('ยังไม่ได้ตั้งค่า TikTok Client Credentials ในระบบ');
-    } else if (error === 'token_exchange_failed') {
-      setErrorMsg('ไม่สามารถยืนยัน Token กับ TikTok ได้ กรุณาลองใหม่อีกครั้ง');
-    } else if (error === 'server_error') {
-      setErrorMsg('เกิดข้อผิดพลาดในการประมวลผล กรุณาลองใหม่อีกครั้ง');
+    const message = error ? OAUTH_ERROR_MESSAGES[error] : undefined;
+    if (message) {
+      setErrorMsg(message);
     }
   }, [searchParams]);
 
@@ -54,23 +58,14 @@ function BackofficeLoginForm() {
     setSuccessMsg('');
 
     try {
-      const res = await fetch('/api/auth/login', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email, password }),
-      });
-
-      const data = await res.json();
-      if (!res.ok || !data.success) {
-        throw new Error(data.message || 'อีเมลหรือรหัสผ่านไม่ถูกต้อง');
-      }
+      await postJson('/api/auth/login', { email, password });
 
       setSuccessMsg('เข้าสู่ระบบสำเร็จ กำลังพาไปยังแดชบอร์ด...');
       setTimeout(() => {
         router.push('/dashboard/products');
       }, 500);
-    } catch (err: any) {
-      setErrorMsg(err.message || 'เกิดข้อผิดพลาดในการเข้าสู่ระบบ');
+    } catch (err: unknown) {
+      setErrorMsg(errorMessage(err, 'เกิดข้อผิดพลาดในการเข้าสู่ระบบ'));
     } finally {
       setIsLoading(false);
     }
@@ -84,28 +79,14 @@ function BackofficeLoginForm() {
     setSuccessMsg('');
 
     try {
-      const res = await fetch('/api/auth/register', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          email,
-          password,
-          displayName,
-          creatorHandle,
-        }),
-      });
-
-      const data = await res.json();
-      if (!res.ok || !data.success) {
-        throw new Error(data.message || 'สมัครสมาชิกร้านค้าไม่สำเร็จ');
-      }
+      await postJson('/api/auth/register', { email, password, displayName, creatorHandle });
 
       setSuccessMsg('สมัครสมาชิกร้านค้าสำเร็จ กำลังพาไปยังแดชบอร์ด...');
       setTimeout(() => {
         router.push('/dashboard/products');
       }, 500);
-    } catch (err: any) {
-      setErrorMsg(err.message || 'เกิดข้อผิดพลาดในการสมัครสมาชิก');
+    } catch (err: unknown) {
+      setErrorMsg(errorMessage(err, 'เกิดข้อผิดพลาดในการสมัครสมาชิก'));
     } finally {
       setIsLoading(false);
     }
@@ -299,17 +280,17 @@ function BackofficeLoginForm() {
 
             <div>
               <label className="block text-[11px] font-medium text-slate-300 mb-1">
-                ตั้งรหัสผ่าน (Password อย่างน้อย 6 ตัวอักษร)
+                ตั้งรหัสผ่าน (Password อย่างน้อย 8 ตัวอักษร)
               </label>
               <div className="relative">
                 <Lock className="w-4 h-4 text-slate-500 absolute left-3 top-2.5" />
                 <input
                   type={showPassword ? 'text' : 'password'}
                   required
-                  minLength={6}
+                  minLength={8}
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
-                  placeholder="ความยาวอย่างน้อย 6 ตัวอักษร"
+                  placeholder="ความยาวอย่างน้อย 8 ตัวอักษร"
                   className="w-full bg-slate-950 border border-slate-800 rounded-xl pl-9 pr-10 py-2 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-blue-500 transition-colors"
                 />
                 <button

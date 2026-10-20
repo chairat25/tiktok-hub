@@ -1,48 +1,40 @@
-import { NextRequest, NextResponse } from 'next/server';
+import { z } from 'zod';
+import { PermissionAction } from '@tiktok/types';
+import { RATE_LIMITS, enforceRateLimit, validationError } from '@tiktok/auth';
+import { isTikTokCdnUrl, isTikTokLink, logger, ok, protectedRoute } from '@tiktok/server';
 
-export async function GET(req: NextRequest) {
-  const { searchParams } = new URL(req.url);
-  const videoUrl = searchParams.get('url');
+export const dynamic = 'force-dynamic';
 
-  if (!videoUrl) {
-    return NextResponse.json(
-      { success: false, message: 'กรุณาระบุ URL ของคลิป TikTok' },
-      { status: 400 }
-    );
+const OEMBED_ENDPOINT = 'https://www.tiktok.com/oembed';
+const REQUEST_TIMEOUT_MS = 8_000;
+
+const oembedSchema = z.object({
+  title: z.string().max(2200).optional(),
+  thumbnail_url: z.string().max(2048).optional(),
+});
+
+export const GET = protectedRoute('backoffice', { permission: PermissionAction.CREATE_PRODUCT }, async (ctx) => {
+  const { req, actor, services } = ctx;
+  await enforceRateLimit(services.rateLimiter, `oembed:user:${actor.user.id}`, RATE_LIMITS.oembedPerUser);
+
+  const videoUrl = req.nextUrl.searchParams.get('url') ?? '';
+  if (videoUrl.length > 2048 || !isTikTokLink(videoUrl)) {
+    throw validationError('กรุณาระบุลิงก์คลิป TikTok ที่ถูกต้อง (https://www.tiktok.com/...)');
   }
 
-  try {
-    // Call official TikTok oEmbed API (No API key required)
-    const oembedEndpoint = `https://www.tiktok.com/oembed?url=${encodeURIComponent(videoUrl)}`;
-    const res = await fetch(oembedEndpoint, {
-      headers: {
-        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
-      },
-    });
-
-    if (!res.ok) {
-      return NextResponse.json(
-        { success: false, message: 'ไม่สามารถดึงข้อมูลคลิป TikTok ได้ กรุณาตรวจสอบลิงก์' },
-        { status: res.status }
-      );
-    }
-
-    const data = await res.json();
-
-    return NextResponse.json({
-      success: true,
-      data: {
-        title: data.title || '',
-        thumbnailUrl: data.thumbnail_url || '',
-        authorName: data.author_name || '',
-        authorUrl: data.author_url || '',
-        html: data.html || '',
-      },
-    });
-  } catch (error: any) {
-    return NextResponse.json(
-      { success: false, message: error.message || 'เกิดข้อผิดพลาดในการเชื่อมต่อกับ TikTok oEmbed' },
-      { status: 500 }
-    );
+  const res = await fetch(`${OEMBED_ENDPOINT}?url=${encodeURIComponent(videoUrl)}`, {
+    signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
+    cache: 'no-store',
+  });
+  const parsed = oembedSchema.safeParse(await res.json().catch(() => null));
+  if (!res.ok || !parsed.success) {
+    logger.warn('tiktok.oembed_failed', { status: res.status });
+    throw validationError('ไม่สามารถดึงข้อมูลคลิป TikTok ได้ กรุณาตรวจสอบลิงก์');
   }
-}
+
+  const thumbnailUrl = parsed.data.thumbnail_url ?? '';
+  return ok({
+    title: parsed.data.title ?? '',
+    thumbnailUrl: isTikTokCdnUrl(thumbnailUrl) ? thumbnailUrl : '',
+  });
+});

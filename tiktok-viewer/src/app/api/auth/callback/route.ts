@@ -1,12 +1,4 @@
-import { NextRequest, NextResponse } from 'next/server';
+import { tiktokCallbackRoute } from '@tiktok/server';
 
-export async function GET(req: NextRequest) {
-  const { searchParams } = new URL(req.url);
-  const code = searchParams.get('code');
-  const state = searchParams.get('state');
-
-  // Redirect back to homepage or specified target state
-  const redirectTarget = state ? decodeURIComponent(state) : '/';
-  
-  return NextResponse.redirect(new URL(redirectTarget, req.url));
-}
+export const dynamic = 'force-dynamic';
+export const GET = tiktokCallbackRoute('viewer');

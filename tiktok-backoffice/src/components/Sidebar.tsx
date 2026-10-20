@@ -13,9 +13,12 @@ import {
   ShoppingBag,
   ShieldAlert,
 } from 'lucide-react';
+import { PermissionAction } from '@tiktok/types';
+import { hasPermission } from '@tiktok/auth/rbac';
+import { PublicUserView, apiRequest } from '@tiktok/server/client';
 
 interface SidebarProps {
-  currentUser: any;
+  currentUser: PublicUserView | null;
 }
 
 export const Sidebar: React.FC<SidebarProps> = ({ currentUser }) => {
@@ -23,8 +26,11 @@ export const Sidebar: React.FC<SidebarProps> = ({ currentUser }) => {
   const router = useRouter();
 
   const handleLogout = async () => {
-    await fetch('/api/auth/logout', { method: 'POST' });
-    router.push('/');
+    try {
+      await apiRequest('/api/auth/logout', { method: 'POST' });
+    } finally {
+      router.push('/');
+    }
   };
 
   const navItems = [
@@ -32,23 +38,27 @@ export const Sidebar: React.FC<SidebarProps> = ({ currentUser }) => {
       name: 'จัดการสินค้า',
       href: '/dashboard/products',
       icon: Package,
+      permission: PermissionAction.VIEW_PRODUCTS,
     },
     {
       name: 'จัดหมวดหมู่สินค้า',
       href: '/dashboard/categories',
       icon: FolderTree,
+      permission: PermissionAction.MANAGE_CATEGORIES,
     },
     {
       name: 'ตั้งค่าร้าน & ลิงก์ TikTok',
       href: '/dashboard/settings',
       icon: Settings,
+      permission: PermissionAction.MANAGE_SHOP_SETTINGS,
     },
     {
       name: 'ทีมงาน & สิทธิ์ (RBAC)',
       href: '/dashboard/team',
       icon: Users,
+      permission: PermissionAction.MANAGE_STAFF,
     },
-  ];
+  ].filter((item) => currentUser && hasPermission(currentUser.role, item.permission));
 
   const creatorHandle = currentUser?.creatorHandle || '@pond';
   const baseViewerUrl = process.env.NEXT_PUBLIC_VIEWER_URL || 'https://tiktok-hub-six.vercel.app';

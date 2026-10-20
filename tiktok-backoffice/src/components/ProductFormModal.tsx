@@ -3,6 +3,12 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { X, Save, Package, Sparkles, Loader2, Image as ImageIcon, Upload, CheckCircle } from 'lucide-react';
 import { IProduct, ICategory, ProductType } from '@tiktok/types';
+import { apiRequest, errorMessage, postJson } from '@tiktok/server/client';
+
+interface UploadResponse {
+  url: string;
+  source: 'r2' | 'fallback';
+}
 
 interface ProductFormModalProps {
   isOpen: boolean;
@@ -74,29 +80,15 @@ export const ProductFormModal: React.FC<ProductFormModalProps> = ({
     setFetchErrorMsg('');
 
     try {
-      const res = await fetch(`/api/tiktok/oembed?url=${encodeURIComponent(tiktokVideoUrl)}`);
-      const data = await res.json();
-
-      if (!res.ok || !data.success) {
-        throw new Error(data.message || 'ไม่สามารถดึงข้อมูลคลิปได้');
-      }
-
-      const { thumbnailUrl, title: videoCaption } = data.data;
+      const { thumbnailUrl, title: videoCaption } = await apiRequest<{ thumbnailUrl: string; title: string }>(
+        `/api/tiktok/oembed?url=${encodeURIComponent(tiktokVideoUrl)}`
+      );
 
       if (thumbnailUrl) {
         // Automatically cache TikTok thumbnail to Cloudflare R2
         try {
-          const cacheRes = await fetch('/api/upload', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ remoteUrl: thumbnailUrl }),
-          });
-          const cacheData = await cacheRes.json();
-          if (cacheData.success && cacheData.url) {
-            setImageUrl(cacheData.url);
-          } else {
-            setImageUrl(thumbnailUrl);
-          }
+          const cached = await postJson<UploadResponse>('/api/upload', { remoteUrl: thumbnailUrl });
+          setImageUrl(cached.url);
         } catch {
           setImageUrl(thumbnailUrl);
         }
@@ -107,8 +99,8 @@ export const ProductFormModal: React.FC<ProductFormModalProps> = ({
       }
 
       setFetchSuccessMsg('ดึงภาพปกและแคปชันจาก TikTok สำเร็จแล้ว (พร้อมบันทึก Cloudflare R2)');
-    } catch (err: any) {
-      setFetchErrorMsg(err.message || 'เกิดข้อผิดพลาดในการดึงข้อมูลคลิป TikTok');
+    } catch (err: unknown) {
+      setFetchErrorMsg(errorMessage(err, 'เกิดข้อผิดพลาดในการดึงข้อมูลคลิป TikTok'));
     } finally {
       setIsFetchingTikTok(false);
     }
@@ -127,20 +119,15 @@ export const ProductFormModal: React.FC<ProductFormModalProps> = ({
       const formData = new FormData();
       formData.append('file', file);
 
-      const res = await fetch('/api/upload', {
+      const data = await apiRequest<UploadResponse>('/api/upload', {
         method: 'POST',
         body: formData,
       });
 
-      const data = await res.json();
-      if (!res.ok || !data.success) {
-        throw new Error(data.message || 'อัปโหลดไฟล์ไม่สำเร็จ');
-      }
-
       setImageUrl(data.url);
       setFetchSuccessMsg(`อัปโหลดไฟล์ขึ้น Cloudflare R2 สำเร็จ (${file.name})`);
-    } catch (err: any) {
-      setFetchErrorMsg(err.message || 'เกิดข้อผิดพลาดในการอัปโหลดไฟล์');
+    } catch (err: unknown) {
+      setFetchErrorMsg(errorMessage(err, 'เกิดข้อผิดพลาดในการอัปโหลดไฟล์'));
     } finally {
       setIsUploading(false);
       if (fileInputRef.current) {

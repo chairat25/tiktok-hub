@@ -7,9 +7,9 @@ export enum UserRole {
 
 export interface IUser {
   id: string;
-  email: string;
+  email: string | null; // null for TikTok-only accounts
   displayName: string;
-  creatorHandle: string; // e.g., "@pond"
+  creatorHandle: string | null; // e.g., "@pond"; null for VIEWER accounts
   tiktokShopUrl?: string; // e.g., "https://shop.tiktok.com/..."
   avatarUrl?: string;
   tiktokOpenId?: string;
