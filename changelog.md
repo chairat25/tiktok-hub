@@ -235,3 +235,22 @@ Dependency rule: `app → server → (auth ← database)` ส่วน `auth` �
 - Login lockout per-email 15 นาที: ผู้ไม่หวังดีทำให้ email เหยื่อ login ไม่ได้ชั่วคราว (trade-off ที่ยอมรับ)
 - `avatarUrl`/`tiktokShopUrl` รับ https ทุกโดเมน: ถ้าจะแสดงให้ viewer เห็น ควรจำกัดโดเมน
 - Admin ลดสิทธิ์ creator เป็น VIEWER แล้ว TikTok login จะไม่ promote กลับ (ต้องปิดด้วย `isActive=false` หรือ role ที่ถูกต้อง)
+
+---
+
+## [2026-10-21] - Production Auth Troubleshooting & Database Migration Execution
+
+### 1. ปัญหาที่พบและได้รับการแก้ไข (Issues & Resolution)
+- **ปัญหา 1 (HTTP 500 INTERNAL_ERROR บน Vercel):**
+  - Endpoint `POST /api/auth/register` และ `GET /api/auth/me` เกิด unhandled exception
+  - สาเหตุ: ตัวแปรสภาพแวดล้อม `APP_URL` ยังไม่ได้ถูกตั้งค่าใน Vercel Environment Variables บนโปรเจกต์ `tiktok-hub-backoffice` และ `tiktok-hub` (viewer) ทำให้ `resolveOrigin()` throw error บล็อกคำขอทั้งหมด
+  - การแก้ไข: ใส่ `APP_URL` บน Vercel ทั้งสองโปรเจกต์ และสั่ง Redeploy เพื่อโหลดค่าใหม่
+- **ปัญหา 2 (Database Schema Mismatch หลัง Auth Hardening):**
+  - การแก้ไข: ดำเนินการรัน Migration `packages/database/migrations/001_auth_hardening.sql` บน Supabase PostgreSQL Pooler สำเร็จเรียบร้อย 100%
+  - สร้างตาราง `sessions`, `rate_limit_buckets` และเปิดใช้งาน Row Level Security (RLS) ครบทุกตาราง
+
+### 2. งานที่ค้างและสิ่งที่ต้องตรวจสอบต่อ (Pending Verification)
+- [ ] ทดสอบสร้างบัญชีร้านค้าใหม่ผ่าน `POST /api/auth/register` บน Backoffice ว่าบันทึกลง Supabase และสร้าง Session Cookie สำเร็จ
+- [ ] ทดสอบเข้าสู่ระบบ `POST /api/auth/login` และทดสอบเรียก `GET /api/auth/me` บนทั้ง Viewer และ Backoffice
+- [ ] ตรวจสอบ TikTok OAuth Redirect URI บน TikTok Developer Portal ให้ตรงกับค่า `APP_URL` ของทั้งสองแอป
+
